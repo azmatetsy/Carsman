@@ -37,51 +37,66 @@ export default function VehicleSelector({
     onDecodeVin,
 }: VehicleSelectorProps) {
     const [mode, setMode] = useState<'ymm' | 'vin'>('ymm');
+    const [extraCatalogItems, setExtraCatalogItems] = useState<VehicleTaxonomyOption[]>(
+        [],
+    );
     const [selectedYear, setSelectedYear] = useState<number | ''>(value?.year ?? '');
     const [selectedMake, setSelectedMake] = useState<string>(value?.make ?? '');
     const [selectedModel, setSelectedModel] = useState<string>(value?.model ?? '');
-    const [selectedTrimKey, setSelectedTrimKey] = useState<string>('');
+    const [selectedTrimKey, setSelectedTrimKey] = useState<string>(value?.id ?? '');
 
     const [vinInput, setVinInput] = useState<string>(value?.vin ?? '');
     const [vinLoading, setVinLoading] = useState<boolean>(false);
     const [vinError, setVinError] = useState<string | null>(null);
 
+    const mergedCatalog = useMemo<VehicleTaxonomyOption[]>(() => {
+        const map = new Map<string, VehicleTaxonomyOption>();
+        for (const item of [...catalog, ...extraCatalogItems]) {
+            map.set(item.id, item);
+        }
+        return Array.from(map.values());
+    }, [catalog, extraCatalogItems]);
+
     // 1. Distinct Years (descending)
     const years = useMemo<number[]>(() => {
-        const set = new Set<number>(catalog.map((v) => v.year));
+        const set = new Set<number>(mergedCatalog.map((v) => v.year));
         return Array.from(set).sort((a, b) => b - a);
-    }, [catalog]);
+    }, [mergedCatalog]);
 
     // 2. Distinct Makes filtered by Year
     const makes = useMemo<string[]>(() => {
         if (!selectedYear) return [];
         const set = new Set<string>(
-            catalog.filter((v) => v.year === Number(selectedYear)).map((v) => v.make),
+            mergedCatalog
+                .filter((v) => v.year === Number(selectedYear))
+                .map((v) => v.make),
         );
         return Array.from(set).sort((a, b) => a.localeCompare(b));
-    }, [catalog, selectedYear]);
+    }, [mergedCatalog, selectedYear]);
 
     // 3. Distinct Models filtered by Year + Make
     const models = useMemo<string[]>(() => {
         if (!selectedYear || !selectedMake) return [];
         const set = new Set<string>(
-            catalog
-                .filter((v) => v.year === Number(selectedYear) && v.make === selectedMake)
+            mergedCatalog
+                .filter(
+                    (v) => v.year === Number(selectedYear) && v.make === selectedMake,
+                )
                 .map((v) => v.model),
         );
         return Array.from(set).sort((a, b) => a.localeCompare(b));
-    }, [catalog, selectedYear, selectedMake]);
+    }, [mergedCatalog, selectedYear, selectedMake]);
 
     // 4. Trims / Engines filtered by Year + Make + Model
     const trimVariants = useMemo<VehicleTaxonomyOption[]>(() => {
         if (!selectedYear || !selectedMake || !selectedModel) return [];
-        return catalog.filter(
+        return mergedCatalog.filter(
             (v) =>
                 v.year === Number(selectedYear) &&
                 v.make === selectedMake &&
                 v.model === selectedModel,
         );
-    }, [catalog, selectedYear, selectedMake, selectedModel]);
+    }, [mergedCatalog, selectedYear, selectedMake, selectedModel]);
 
     const handleYearChange = (yearStr: string) => {
         const nextYear = yearStr ? Number(yearStr) : '';
@@ -108,7 +123,7 @@ export default function VehicleSelector({
             return;
         }
 
-        const matchingVariants = catalog.filter(
+        const matchingVariants = mergedCatalog.filter(
             (v) =>
                 v.year === Number(selectedYear) &&
                 v.make === selectedMake &&
@@ -179,11 +194,29 @@ export default function VehicleSelector({
             }
 
             const decoded = response.attributes;
+            const resolvedId =
+                decoded.id ??
+                `vin-${decoded.year}-${decoded.make}-${decoded.model}-${decoded.submodel ?? ''}`;
+
+            setExtraCatalogItems((prev) => [
+                ...prev,
+                {
+                    id: resolvedId,
+                    year: decoded.year,
+                    make: decoded.make,
+                    model: decoded.model,
+                    submodel: decoded.submodel ?? '',
+                    engine: decoded.engine ?? '',
+                },
+            ]);
+
             setSelectedYear(decoded.year);
             setSelectedMake(decoded.make);
             setSelectedModel(decoded.model);
+            setSelectedTrimKey(resolvedId);
             onChange({
                 ...decoded,
+                id: resolvedId,
                 vin: normalizedVin,
             });
         } catch {

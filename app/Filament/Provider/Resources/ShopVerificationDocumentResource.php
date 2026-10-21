@@ -5,12 +5,17 @@ declare(strict_types=1);
 namespace App\Filament\Provider\Resources;
 
 use App\Filament\Provider\Resources\ShopVerificationDocumentResource\Pages;
+use App\Models\Shop;
 use App\Models\ShopVerificationDocument;
+use App\Models\User;
+use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 
 final class ShopVerificationDocumentResource extends Resource
 {
@@ -27,6 +32,34 @@ final class ShopVerificationDocumentResource extends Resource
     protected static ?string $modelLabel = 'Compliance Document';
 
     protected static ?int $navigationSort = 40;
+
+    public static function canViewAny(): bool
+    {
+        return self::currentUserCanManageShop();
+    }
+
+    public static function canCreate(): bool
+    {
+        return self::currentUserCanManageShop();
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return false;
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return false;
+    }
+
+    private static function currentUserCanManageShop(): bool
+    {
+        $user = Auth::user();
+        $tenant = Filament::getTenant();
+
+        return $user instanceof User && $tenant instanceof Shop && $user->canManageShop($tenant);
+    }
 
     public static function form(Form $form): Form
     {

@@ -57,6 +57,7 @@ return new class extends Migration
             SQL);
 
             DB::statement('ALTER TABLE shop_availability_slots ENABLE ROW LEVEL SECURITY');
+            DB::statement('ALTER TABLE shop_availability_slots FORCE ROW LEVEL SECURITY');
             DB::statement(<<<'SQL'
                 CREATE POLICY shop_availability_tenant_isolation_policy ON shop_availability_slots
                 USING (
@@ -72,6 +73,7 @@ return new class extends Migration
             SQL);
 
             DB::statement('ALTER TABLE shop_verification_documents ENABLE ROW LEVEL SECURITY');
+            DB::statement('ALTER TABLE shop_verification_documents FORCE ROW LEVEL SECURITY');
             DB::statement(<<<'SQL'
                 CREATE POLICY shop_verification_docs_tenant_isolation_policy ON shop_verification_documents
                 USING (

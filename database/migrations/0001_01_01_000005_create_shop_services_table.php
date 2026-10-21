@@ -54,6 +54,7 @@ return new class extends Migration
 
             // Enable PostgreSQL Row-Level Security (RLS) for strict tenant isolation
             DB::statement('ALTER TABLE shop_services ENABLE ROW LEVEL SECURITY');
+            DB::statement('ALTER TABLE shop_services FORCE ROW LEVEL SECURITY');
             DB::statement(<<<'SQL'
                 CREATE POLICY shop_services_tenant_isolation_policy ON shop_services
                 USING (

@@ -6,14 +6,19 @@ namespace App\Filament\Provider\Resources;
 
 use App\Filament\Provider\Resources\ShopServiceResource\Pages;
 use App\Models\Service;
+use App\Models\Shop;
 use App\Models\ShopService;
+use App\Models\User;
 use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules\Unique;
 
 final class ShopServiceResource extends Resource
@@ -31,6 +36,29 @@ final class ShopServiceResource extends Resource
     protected static ?string $modelLabel = 'Shop Service Rate';
 
     protected static ?int $navigationSort = 10;
+
+    public static function canCreate(): bool
+    {
+        return self::currentUserCanManageShop();
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return self::currentUserCanManageShop();
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return self::currentUserCanManageShop();
+    }
+
+    private static function currentUserCanManageShop(): bool
+    {
+        $user = Auth::user();
+        $tenant = Filament::getTenant();
+
+        return $user instanceof User && $tenant instanceof Shop && $user->canManageShop($tenant);
+    }
 
     public static function form(Form $form): Form
     {
@@ -73,6 +101,16 @@ final class ShopServiceResource extends Resource
                             ])
                             ->default('hourly')
                             ->live()
+                            ->afterStateUpdated(function (?string $state, Set $set): void {
+                                if ($state === 'hourly') {
+                                    $set('fixed_price', null);
+                                } elseif ($state === 'fixed') {
+                                    $set('hourly_rate', null);
+                                } elseif ($state === 'quote_only') {
+                                    $set('hourly_rate', null);
+                                    $set('fixed_price', null);
+                                }
+                            })
                             ->native(false)
                             ->required(),
 
@@ -85,7 +123,10 @@ final class ShopServiceResource extends Resource
                             ->maxValue(9999.99)
                             ->step(0.01)
                             ->visible(fn (Get $get): bool => $get('pricing_type') === 'hourly')
-                            ->dehydratedWhenHidden(false)
+                            ->dehydrated(true)
+                            ->dehydrateStateUsing(
+                                fn (mixed $state, Get $get): mixed => $get('pricing_type') === 'hourly' && filled($state) ? $state : null,
+                            )
                             ->helperText('Leave blank to fall back to your shop base labor rate.'),
 
                         Forms\Components\TextInput::make('fixed_price')
@@ -97,7 +138,10 @@ final class ShopServiceResource extends Resource
                             ->step(0.01)
                             ->visible(fn (Get $get): bool => $get('pricing_type') === 'fixed')
                             ->required(fn (Get $get): bool => $get('pricing_type') === 'fixed')
-                            ->dehydratedWhenHidden(false),
+                            ->dehydrated(true)
+                            ->dehydrateStateUsing(
+                                fn (mixed $state, Get $get): mixed => $get('pricing_type') === 'fixed' && filled($state) ? $state : null,
+                            ),
 
                         Forms\Components\TextInput::make('estimated_minutes')
                             ->label('Estimated Service Duration (Minutes)')

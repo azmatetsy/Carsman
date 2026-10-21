@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Provider\Pages\Tenancy;
 
 use App\Enums\ShopMemberRole;
+use App\Enums\UserRole;
 use App\Models\Shop;
 use App\Models\ShopMember;
 use App\Models\User;
@@ -21,6 +22,15 @@ final class RegisterShop extends RegisterTenant
     public static function getLabel(): string
     {
         return 'Register New Repair Shop';
+    }
+
+    public static function canView(): bool
+    {
+        $user = Auth::user();
+
+        return $user instanceof User
+            && $user->is_active
+            && $user->role === UserRole::ShopOwner;
     }
 
     public function form(Form $form): Form

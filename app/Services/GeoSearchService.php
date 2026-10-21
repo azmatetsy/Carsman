@@ -94,6 +94,7 @@ final class GeoSearchService
         // First check if we have an active certified shop in that exact ZIP to anchor the centroid
         $shopInZip = Shop::query()
             ->where('is_active', true)
+            ->where('is_certified', true)
             ->where('zip_code', 'like', "{$normalizedZip}%")
             ->first(['city', 'state', 'latitude', 'longitude']);
 

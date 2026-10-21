@@ -14,6 +14,8 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class VerificationDocumentResource extends Resource
 {
@@ -54,6 +56,16 @@ final class VerificationDocumentResource extends Resource
                         Forms\Components\TextInput::make('document_type')
                             ->label('Document Type')
                             ->disabled(),
+
+                        Forms\Components\FileUpload::make('file_path')
+                            ->label('Uploaded Private Document')
+                            ->disk('local')
+                            ->directory('private/shop-verification-documents')
+                            ->visibility('private')
+                            ->openable()
+                            ->downloadable()
+                            ->disabled()
+                            ->columnSpanFull(),
 
                         Forms\Components\Select::make('status')
                             ->label('Review Decision')
@@ -128,6 +140,13 @@ final class VerificationDocumentResource extends Resource
                     ]),
             ])
             ->actions([
+                Tables\Actions\Action::make('download_document')
+                    ->label('Download File')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('gray')
+                    ->visible(fn (ShopVerificationDocument $record): bool => filled($record->file_path) && Storage::disk('local')->exists($record->file_path))
+                    ->action(fn (ShopVerificationDocument $record): StreamedResponse => Storage::disk('local')->download($record->file_path)),
+
                 Tables\Actions\Action::make('approve_document')
                     ->label('Approve')
                     ->icon('heroicon-o-check-circle')

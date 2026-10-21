@@ -36,24 +36,32 @@ export default function Home({
         const payload = await response.json();
         return {
             success: Boolean(payload.success),
-            attributes: payload.attributes ?? null,
+            attributes: payload.attributes
+                ? {
+                      ...payload.attributes,
+                      id: payload.vehicle?.id ?? undefined,
+                  }
+                : null,
             error: payload.error ?? null,
         };
     };
 
     const handleShopSearch = async (params: {
         zipCode: string;
-        latitude: number;
-        longitude: number;
+        latitude?: number;
+        longitude?: number;
         radiusMiles: number;
         serviceId?: string;
     }) => {
         const query = new URLSearchParams({
             zip_code: params.zipCode,
-            lat: String(params.latitude),
-            lng: String(params.longitude),
             radius_miles: String(params.radiusMiles),
         });
+
+        if (params.latitude !== undefined && params.longitude !== undefined) {
+            query.set('lat', String(params.latitude));
+            query.set('lng', String(params.longitude));
+        }
 
         if (params.serviceId) {
             query.set('service_id', params.serviceId);

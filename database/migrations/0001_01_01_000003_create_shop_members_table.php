@@ -37,6 +37,7 @@ return new class extends Migration
 
             // Enable PostgreSQL Row-Level Security (RLS) to prevent cross-shop membership leakage
             DB::statement('ALTER TABLE shop_members ENABLE ROW LEVEL SECURITY');
+            DB::statement('ALTER TABLE shop_members FORCE ROW LEVEL SECURITY');
             DB::statement(<<<'SQL'
                 CREATE POLICY shop_members_tenant_isolation_policy ON shop_members
                 USING (

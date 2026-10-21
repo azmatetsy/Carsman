@@ -139,8 +139,19 @@ final class User extends Authenticatable implements FilamentUser, HasDefaultTena
     public function hasShopRole(Shop $shop, ShopMemberRole $role): bool
     {
         return $this->shopMemberships()
+            ->withoutGlobalScopes()
             ->where('shop_id', $shop->getKey())
             ->where('role', $role->value)
+            ->where('is_active', true)
+            ->exists();
+    }
+
+    public function canManageShop(Shop $shop): bool
+    {
+        return $this->shopMemberships()
+            ->withoutGlobalScopes()
+            ->where('shop_id', $shop->getKey())
+            ->whereIn('role', [ShopMemberRole::Owner->value, ShopMemberRole::Manager->value])
             ->where('is_active', true)
             ->exists();
     }

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from '@inertiajs/react';
 import { SelectedVehicleSpec } from './VehicleSelector';
 
 export interface NearbyShopItem {
@@ -36,8 +37,8 @@ interface ShopLocatorProps {
     initialZip?: string;
     onSearch: (params: {
         zipCode: string;
-        latitude: number;
-        longitude: number;
+        latitude?: number;
+        longitude?: number;
         radiusMiles: number;
         serviceId?: string;
     }) => Promise<{
@@ -49,8 +50,9 @@ interface ShopLocatorProps {
 }
 
 /**
- * Built-in US Metro ZIP coordinate table for immediate client-side lat/lng conversion
- * prior to querying `GeoSearchService::findNearbyShops()`.
+ * Built-in US Metro ZIP coordinate table for immediate client-side lat/lng lookup
+ * when matching known pilot metro ZIPs; unrecognized ZIPs are resolved server-side
+ * by `GeoSearchService::resolveZipCoordinates()`.
  */
 const US_ZIP_COORDINATES: Record<
     string,
@@ -101,19 +103,14 @@ export default function ShopLocator({
             return;
         }
 
-        const localCentroid = US_ZIP_COORDINATES[cleanZip] ?? {
-            city: 'US Metro Area',
-            state: 'US',
-            latitude: 37.7749,
-            longitude: -122.4194,
-        };
+        const knownCentroid = US_ZIP_COORDINATES[cleanZip];
 
         setLoading(true);
         try {
             const response = await onSearch({
                 zipCode: cleanZip,
-                latitude: localCentroid.latitude,
-                longitude: localCentroid.longitude,
+                latitude: knownCentroid?.latitude,
+                longitude: knownCentroid?.longitude,
                 radiusMiles,
                 serviceId: selectedServiceId || undefined,
             });
@@ -125,7 +122,7 @@ export default function ShopLocator({
             }
 
             setShops(response.shops);
-            setSearchMeta(response.resolvedLocation ?? localCentroid);
+            setSearchMeta(response.resolvedLocation ?? knownCentroid ?? null);
         } catch {
             setError('Unable to search nearby certified shops right now. Please try again.');
         } finally {
@@ -265,9 +262,12 @@ export default function ShopLocator({
                         >
                             <div className="space-y-2">
                                 <div className="flex flex-wrap items-center gap-2.5">
-                                    <h3 className="text-lg font-bold text-slate-900">
+                                    <Link
+                                        href={`/shops/${shop.slug}`}
+                                        className="text-lg font-bold text-slate-900 hover:text-blue-600"
+                                    >
                                         {shop.name}
-                                    </h3>
+                                    </Link>
                                     {shop.is_certified && (
                                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
                                             ✓ RepairPal Certified
@@ -308,15 +308,23 @@ export default function ShopLocator({
                                 </div>
 
                                 <div className="flex flex-wrap gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            onRequestQuote?.(shop, selectedServiceId || undefined)
-                                        }
-                                        className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-blue-700"
+                                    <Link
+                                        href={`/shops/${shop.slug}`}
+                                        className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-800 transition hover:border-blue-500 hover:text-blue-600"
                                     >
-                                        Request Estimate / Book
-                                    </button>
+                                        View Shop Profile
+                                    </Link>
+                                    {onRequestQuote && (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                onRequestQuote(shop, selectedServiceId || undefined)
+                                            }
+                                            className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-blue-700"
+                                        >
+                                            Request Estimate / Book
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </article>

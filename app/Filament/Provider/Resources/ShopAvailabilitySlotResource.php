@@ -5,13 +5,18 @@ declare(strict_types=1);
 namespace App\Filament\Provider\Resources;
 
 use App\Filament\Provider\Resources\ShopAvailabilitySlotResource\Pages;
+use App\Models\Shop;
 use App\Models\ShopAvailabilitySlot;
+use App\Models\User;
 use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules\Unique;
 
 final class ShopAvailabilitySlotResource extends Resource
@@ -29,6 +34,29 @@ final class ShopAvailabilitySlotResource extends Resource
     protected static ?string $modelLabel = 'Availability Day';
 
     protected static ?int $navigationSort = 30;
+
+    public static function canCreate(): bool
+    {
+        return self::currentUserCanManageShop();
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return self::currentUserCanManageShop();
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return self::currentUserCanManageShop();
+    }
+
+    private static function currentUserCanManageShop(): bool
+    {
+        $user = Auth::user();
+        $tenant = Filament::getTenant();
+
+        return $user instanceof User && $tenant instanceof Shop && $user->canManageShop($tenant);
+    }
 
     /**
      * @return array<int, string>
@@ -76,23 +104,31 @@ final class ShopAvailabilitySlotResource extends Resource
                             ->maxValue(100)
                             ->required(),
 
+                        Forms\Components\Toggle::make('is_closed')
+                            ->label('Shop Closed on This Day')
+                            ->default(false)
+                            ->live()
+                            ->onColor('danger')
+                            ->columnSpanFull(),
+
                         Forms\Components\TimePicker::make('opens_at')
                             ->label('Opens At')
                             ->seconds(false)
                             ->default('08:00')
+                            ->disabled(fn (Get $get): bool => (bool) $get('is_closed'))
+                            ->dehydrated(true)
+                            ->dehydrateStateUsing(fn (?string $state): string => filled($state) ? $state : '08:00')
                             ->required(),
 
                         Forms\Components\TimePicker::make('closes_at')
                             ->label('Closes At')
                             ->seconds(false)
                             ->default('17:30')
-                            ->after('opens_at')
+                            ->disabled(fn (Get $get): bool => (bool) $get('is_closed'))
+                            ->dehydrated(true)
+                            ->dehydrateStateUsing(fn (?string $state): string => filled($state) ? $state : '17:30')
+                            ->after(fn (Get $get): ?string => $get('is_closed') ? null : 'opens_at')
                             ->required(),
-
-                        Forms\Components\Toggle::make('is_closed')
-                            ->label('Shop Closed on This Day')
-                            ->default(false)
-                            ->onColor('danger'),
                     ]),
             ]);
     }

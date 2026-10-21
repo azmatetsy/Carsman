@@ -32,20 +32,25 @@ final class ShopDirectoryController
         $resolvedLocation = null;
         if (! empty($validated['zip_code'])) {
             $resolvedLocation = $this->geoSearchService->resolveZipCoordinates((string) $validated['zip_code']);
+
+            if ($resolvedLocation === null) {
+                return response()->json([
+                    'data' => [],
+                    'error' => 'Unable to resolve coordinates for the provided ZIP code. Please enter a supported pilot metro ZIP code (e.g., 94102, 78701, 90001).',
+                ], 422);
+            }
         }
 
-        $lat = isset($validated['lat'])
-            ? (float) $validated['lat']
-            : ($resolvedLocation['latitude'] ?? null);
+        $lat = $resolvedLocation['latitude']
+            ?? (isset($validated['lat']) ? (float) $validated['lat'] : null);
 
-        $lng = isset($validated['lng'])
-            ? (float) $validated['lng']
-            : ($resolvedLocation['longitude'] ?? null);
+        $lng = $resolvedLocation['longitude']
+            ?? (isset($validated['lng']) ? (float) $validated['lng'] : null);
 
         if ($lat === null || $lng === null) {
             return response()->json([
                 'data' => [],
-                'error' => 'Unable to resolve coordinates for the provided ZIP code. Please provide a valid pilot ZIP code or coordinates.',
+                'error' => 'Please provide either a valid US ZIP code or latitude/longitude coordinates.',
             ], 422);
         }
 
