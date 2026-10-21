@@ -44,7 +44,11 @@ final class BookingStateMachineService
     public function createBookingRequest(array $payload, ?string $actorUserId = null): Booking
     {
         return DB::transaction(function () use ($payload, $actorUserId): Booking {
+            $normalizedEmail = strtolower(trim($payload['customer_email']));
+
             $existing = Booking::withoutGlobalScopes()
+                ->where('shop_id', $payload['shop_id'])
+                ->whereRaw('LOWER(customer_email) = ?', [$normalizedEmail])
                 ->where('idempotency_key', $payload['idempotency_key'])
                 ->first();
 

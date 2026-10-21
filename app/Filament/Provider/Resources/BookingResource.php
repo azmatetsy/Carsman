@@ -61,6 +61,14 @@ final class BookingResource extends Resource
         return $user instanceof User && $tenant instanceof Shop && $user->canManageShop($tenant);
     }
 
+    private static function currentUserIsActiveShopMember(): bool
+    {
+        $user = Auth::user();
+        $tenant = Filament::getTenant();
+
+        return $user instanceof User && $tenant instanceof Shop && $user->canAccessTenant($tenant);
+    }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -228,19 +236,27 @@ final class BookingResource extends Resource
                     ->icon('heroicon-o-wrench')
                     ->color('primary')
                     ->requiresConfirmation()
-                    ->visible(fn (Booking $record): bool => $record->status->canTransitionTo(BookingStatus::InProgress))
+                    ->visible(fn (Booking $record): bool => $record->status->canTransitionTo(BookingStatus::InProgress) && self::currentUserIsActiveShopMember())
                     ->action(function (Booking $record, BookingStateMachineService $stateMachine): void {
-                        $stateMachine->transition(
-                            booking: $record,
-                            targetStatus: BookingStatus::InProgress,
-                            actorUserId: (string) Auth::id(),
-                            note: 'Vehicle checked into service bay.',
-                        );
+                        try {
+                            $stateMachine->transition(
+                                booking: $record,
+                                targetStatus: BookingStatus::InProgress,
+                                actorUserId: (string) Auth::id(),
+                                note: 'Vehicle checked into service bay.',
+                            );
 
-                        Notification::make()
-                            ->title('Repair Marked In Progress')
-                            ->success()
-                            ->send();
+                            Notification::make()
+                                ->title('Repair Marked In Progress')
+                                ->success()
+                                ->send();
+                        } catch (DomainException $e) {
+                            Notification::make()
+                                ->title('Cannot Start Service')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
                     }),
 
                 Tables\Actions\Action::make('complete_service')
@@ -248,19 +264,27 @@ final class BookingResource extends Resource
                     ->icon('heroicon-o-check-badge')
                     ->color('success')
                     ->requiresConfirmation()
-                    ->visible(fn (Booking $record): bool => $record->status->canTransitionTo(BookingStatus::Completed))
+                    ->visible(fn (Booking $record): bool => $record->status->canTransitionTo(BookingStatus::Completed) && self::currentUserIsActiveShopMember())
                     ->action(function (Booking $record, BookingStateMachineService $stateMachine): void {
-                        $stateMachine->transition(
-                            booking: $record,
-                            targetStatus: BookingStatus::Completed,
-                            actorUserId: (string) Auth::id(),
-                            note: 'Repair service completed and quality checked.',
-                        );
+                        try {
+                            $stateMachine->transition(
+                                booking: $record,
+                                targetStatus: BookingStatus::Completed,
+                                actorUserId: (string) Auth::id(),
+                                note: 'Repair service completed and quality checked.',
+                            );
 
-                        Notification::make()
-                            ->title('Appointment Completed')
-                            ->success()
-                            ->send();
+                            Notification::make()
+                                ->title('Appointment Completed')
+                                ->success()
+                                ->send();
+                        } catch (DomainException $e) {
+                            Notification::make()
+                                ->title('Cannot Complete Service')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
                     }),
 
                 Tables\Actions\Action::make('decline_booking')
@@ -274,17 +298,25 @@ final class BookingResource extends Resource
                             ->required(),
                     ])
                     ->action(function (Booking $record, array $data, BookingStateMachineService $stateMachine): void {
-                        $stateMachine->transition(
-                            booking: $record,
-                            targetStatus: BookingStatus::Declined,
-                            actorUserId: (string) Auth::id(),
-                            note: (string) $data['note'],
-                        );
+                        try {
+                            $stateMachine->transition(
+                                booking: $record,
+                                targetStatus: BookingStatus::Declined,
+                                actorUserId: (string) Auth::id(),
+                                note: (string) $data['note'],
+                            );
 
-                        Notification::make()
-                            ->title('Appointment Request Declined')
-                            ->warning()
-                            ->send();
+                            Notification::make()
+                                ->title('Appointment Request Declined')
+                                ->warning()
+                                ->send();
+                        } catch (DomainException $e) {
+                            Notification::make()
+                                ->title('Cannot Decline Request')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
                     }),
             ]);
     }

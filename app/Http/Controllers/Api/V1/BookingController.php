@@ -55,18 +55,23 @@ final class BookingController
         }
 
         $headerKey = $request->header('Idempotency-Key');
-        $idempotencyKey = is_string($headerKey) && trim($headerKey) !== ''
-            ? substr(trim($headerKey), 0, 64)
+        $rawClientKey = is_string($headerKey) && trim($headerKey) !== ''
+            ? trim($headerKey)
             : (isset($validated['idempotency_key']) && trim((string) $validated['idempotency_key']) !== ''
                 ? trim((string) $validated['idempotency_key'])
-                : substr(hash('sha256', implode('|', [
-                    $validated['shop_id'],
-                    $validated['vehicle_id'],
-                    $validated['service_id'],
-                    $validated['preferred_date'],
-                    $validated['preferred_time_slot'],
-                    strtolower((string) $validated['customer_email']),
-                ])), 0, 64));
+                : '');
+
+        // Bind the idempotency key to (shop_id, customer_email, vehicle_id, service_id, date, slot, client_key)
+        // via SHA-256 so two different customers or services can never collide on truncated client keys (`[HIGH-01]`)
+        $scopedIdempotencyKey = hash('sha256', implode('|', [
+            (string) $validated['shop_id'],
+            strtolower(trim((string) $validated['customer_email'])),
+            (string) $validated['vehicle_id'],
+            (string) $validated['service_id'],
+            (string) $validated['preferred_date'],
+            (string) $validated['preferred_time_slot'],
+            $rawClientKey,
+        ]));
 
         $booking = $this->bookingStateMachine->createBookingRequest([
             'shop_id' => (string) $validated['shop_id'],
@@ -74,11 +79,11 @@ final class BookingController
             'vehicle_id' => (string) $validated['vehicle_id'],
             'service_id' => (string) $validated['service_id'],
             'shop_quote_id' => isset($validated['shop_quote_id']) ? (string) $validated['shop_quote_id'] : null,
-            'idempotency_key' => $idempotencyKey,
+            'idempotency_key' => $scopedIdempotencyKey,
             'preferred_date' => (string) $validated['preferred_date'],
             'preferred_time_slot' => (string) $validated['preferred_time_slot'],
             'customer_name' => (string) $validated['customer_name'],
-            'customer_email' => (string) $validated['customer_email'],
+            'customer_email' => strtolower(trim((string) $validated['customer_email'])),
             'customer_phone' => (string) $validated['customer_phone'],
             'issue_description' => isset($validated['issue_description']) ? (string) $validated['issue_description'] : null,
         ], $request->user()?->id);
@@ -150,11 +155,18 @@ final class BookingController
         ]);
     }
 
+    /**
+     * Strict booking authorization (`[CRITICAL-02]`):
+     * - Registered customer bookings (`customer_id !== null`) require an authenticated session
+     *   matching `customer_id`, an active member of the booking's `Shop`, or a platform `Admin`.
+     * - Guest bookings (`customer_id === null`) require the caller to possess the exact `Booking`
+     *   UUID (`{id}`) AND matching `customer_email`.
+     */
     private function isAuthorizedForBooking(Request $request, Booking $booking): bool
     {
         $user = $request->user();
 
-        if ($user instanceof User) {
+        if ($user instanceof User && $user->is_active) {
             if ($user->role === UserRole::Admin) {
                 return true;
             }
@@ -163,20 +175,17 @@ final class BookingController
                 return true;
             }
 
-            if (strtolower($booking->customer_email) === strtolower($user->email)) {
-                return true;
-            }
-
             if ($booking->shop !== null && $user->canAccessTenant($booking->shop)) {
                 return true;
             }
         }
 
-        $providedEmail = (string) ($request->input('customer_email') ?? $request->query('customer_email', ''));
-        if ($providedEmail !== '' && strtolower($providedEmail) === strtolower($booking->customer_email)) {
-            return true;
+        if ($booking->customer_id !== null) {
+            return false;
         }
 
-        return false;
+        $providedEmail = strtolower(trim((string) ($request->input('customer_email') ?? $request->query('customer_email', ''))));
+
+        return $providedEmail !== '' && $providedEmail === strtolower(trim($booking->customer_email));
     }
 }

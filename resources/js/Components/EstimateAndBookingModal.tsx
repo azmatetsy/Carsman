@@ -61,6 +61,7 @@ export default function EstimateAndBookingModal({
     const [submitting, setSubmitting] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [confirmationMessage, setConfirmationMessage] = useState<string | null>(null);
+    const [createdReferenceQuery, setCreatedReferenceQuery] = useState<string>('');
 
     const handleCalculateEstimate = async () => {
         setError(null);
@@ -152,14 +153,31 @@ export default function EstimateAndBookingModal({
                     return;
                 }
 
+                if (payload.data?.id) {
+                    setCreatedReferenceQuery(`&quote_id=${encodeURIComponent(payload.data.id)}`);
+                }
+
                 setConfirmationMessage(
                     `Quote request submitted to ${shop.name}. Track shop responses in your Customer Account.`,
                 );
                 return;
             }
 
-            const idempotencyKey = `${shop.id}-${selectedVehicle.id}-${serviceId}-${preferredDate}-${preferredTimeSlot}`
-                .slice(0, 64);
+            // Compact non-colliding 64-char idempotency key incorporating all 6 booking dimensions (`[HIGH-01]`)
+            const compactShop = shop.id.replace(/-/g, '').slice(0, 10);
+            const compactVehicle = selectedVehicle.id.replace(/-/g, '').slice(0, 10);
+            const compactService = serviceId.replace(/-/g, '').slice(0, 10);
+            const compactDate = preferredDate.replace(/-/g, '');
+            const compactEmail = customerEmail
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '')
+                .slice(0, 12);
+            const idempotencyKey =
+                `${compactShop}-${compactVehicle}-${compactService}-${compactDate}-${preferredTimeSlot.slice(0, 3)}-${compactEmail}`.slice(
+                    0,
+                    64,
+                );
 
             const response = await fetch('/api/v1/bookings', {
                 method: 'POST',
@@ -185,6 +203,10 @@ export default function EstimateAndBookingModal({
             if (!response.ok) {
                 setError(payload.message ?? payload.error ?? 'Failed to submit appointment request.');
                 return;
+            }
+
+            if (payload.data?.id) {
+                setCreatedReferenceQuery(`&booking_id=${encodeURIComponent(payload.data.id)}`);
             }
 
             setConfirmationMessage(
@@ -230,7 +252,7 @@ export default function EstimateAndBookingModal({
                         <p className="text-sm text-emerald-800">{confirmationMessage}</p>
                         <div className="flex justify-center gap-3 pt-2">
                             <a
-                                href={`/account?email=${encodeURIComponent(customerEmail)}`}
+                                href={`/account?email=${encodeURIComponent(customerEmail)}${createdReferenceQuery}`}
                                 className="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800"
                             >
                                 Open Customer Account

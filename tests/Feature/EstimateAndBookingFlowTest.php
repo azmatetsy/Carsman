@@ -15,7 +15,7 @@ use App\Services\BookingStateMachineService;
 use App\Services\EstimateCalculationService;
 use DomainException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Foundation\Testing\TestCase;
+use Tests\TestCase;
 
 final class EstimateAndBookingFlowTest extends TestCase
 {

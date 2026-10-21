@@ -12,8 +12,8 @@ use App\Models\ShopMember;
 use App\Models\ShopService;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Foundation\Testing\TestCase;
 use RuntimeException;
+use Tests\TestCase;
 
 final class TenantIsolationAndSecurityTest extends TestCase
 {

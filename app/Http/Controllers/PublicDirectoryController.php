@@ -73,8 +73,17 @@ final class PublicDirectoryController
             'availabilitySlots' => static fn ($query) => $query->withoutGlobalScopes()->orderBy('day_of_week'),
         ]);
 
+        $vehicleCatalog = Vehicle::query()
+            ->where('is_active', true)
+            ->orderByDesc('year')
+            ->orderBy('make')
+            ->orderBy('model')
+            ->limit(500)
+            ->get(['id', 'year', 'make', 'model', 'submodel', 'engine']);
+
         return Inertia::render('ShopDetail', [
             'shop' => $shop,
+            'vehicleCatalog' => $vehicleCatalog,
         ]);
     }
 }
