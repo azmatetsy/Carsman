@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Providers\Filament;
 
+use App\Filament\Provider\Pages\Tenancy\EditShopProfile;
+use App\Filament\Provider\Pages\Tenancy\RegisterShop;
 use App\Http\Middleware\EnforcePostgresShopTenantContext;
 use App\Models\Shop;
 use Filament\Http\Middleware\Authenticate;
@@ -43,6 +45,8 @@ final class ProviderPanelProvider extends PanelProvider
                 slugAttribute: 'slug',
                 ownershipRelationship: 'shop',
             )
+            ->tenantRegistration(RegisterShop::class)
+            ->tenantProfile(EditShopProfile::class)
             ->tenantRoutePrefix('shops')
             ->tenantMiddleware([
                 EnforcePostgresShopTenantContext::class,

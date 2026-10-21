@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\ServiceDifficultyLevel;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -25,6 +26,7 @@ final class Service extends Model
         'name',
         'slug',
         'description',
+        'difficulty_level',
         'default_labor_hours',
         'is_active',
     ];
@@ -35,6 +37,7 @@ final class Service extends Model
     protected function casts(): array
     {
         return [
+            'difficulty_level' => ServiceDifficultyLevel::class,
             'default_labor_hours' => 'decimal:2',
             'is_active' => 'boolean',
         ];
