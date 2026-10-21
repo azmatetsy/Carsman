@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Api\V1\BookingController;
+use App\Http\Controllers\Api\V1\EstimateController;
 use App\Http\Controllers\Api\V1\ShopDirectoryController;
 use App\Http\Controllers\Api\V1\VehicleCatalogController;
 use Illuminate\Support\Facades\Route;
@@ -25,4 +27,28 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
     Route::post('/vehicles/decode-vin', [VehicleCatalogController::class, 'decodeVin'])
         ->middleware('throttle:20,1')
         ->name('vehicles.decode-vin');
+
+    // Estimate & Quote Engine (AUTO-05)
+    Route::post('/estimates', [EstimateController::class, 'store'])
+        ->middleware('throttle:30,1')
+        ->name('estimates.store');
+
+    Route::post('/quotes', [EstimateController::class, 'requestShopQuote'])
+        ->middleware('throttle:20,1')
+        ->name('quotes.store');
+
+    // Bookings & Appointment State Machine (AUTO-06)
+    Route::post('/bookings', [BookingController::class, 'store'])
+        ->middleware('throttle:20,1')
+        ->name('bookings.store');
+
+    Route::get('/bookings/{id}', [BookingController::class, 'show'])
+        ->whereUuid('id')
+        ->middleware('throttle:60,1')
+        ->name('bookings.show');
+
+    Route::post('/bookings/{id}/cancel', [BookingController::class, 'cancel'])
+        ->whereUuid('id')
+        ->middleware('throttle:20,1')
+        ->name('bookings.cancel');
 });

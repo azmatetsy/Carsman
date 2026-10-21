@@ -5,6 +5,7 @@ import VehicleSelector, {
     VehicleTaxonomyOption,
 } from '../Components/VehicleSelector';
 import ShopLocator, { NearbyShopItem, ServiceOption } from '../Components/ShopLocator';
+import EstimateAndBookingModal from '../Components/EstimateAndBookingModal';
 
 interface HomePageProps {
     vehicleCatalog: VehicleTaxonomyOption[];
@@ -22,6 +23,10 @@ export default function Home({
     const [selectedVehicle, setSelectedVehicle] = useState<SelectedVehicleSpec | null>(
         null,
     );
+    const [activeBookingTarget, setActiveBookingTarget] = useState<{
+        shop: NearbyShopItem;
+        serviceId?: string;
+    } | null>(null);
 
     const handleDecodeVin = async (vin: string) => {
         const response = await fetch('/api/v1/vehicles/decode-vin', {
@@ -149,8 +154,22 @@ export default function Home({
                         initialShops={initialShops}
                         initialZip={initialZip}
                         onSearch={handleShopSearch}
+                        onRequestQuote={(shop, serviceId) =>
+                            setActiveBookingTarget({ shop, serviceId })
+                        }
                     />
                 </main>
+
+                {activeBookingTarget && (
+                    <EstimateAndBookingModal
+                        shop={activeBookingTarget.shop}
+                        services={services}
+                        selectedVehicle={selectedVehicle}
+                        defaultServiceId={activeBookingTarget.serviceId}
+                        defaultZipCode={initialZip}
+                        onClose={() => setActiveBookingTarget(null)}
+                    />
+                )}
             </div>
         </>
     );

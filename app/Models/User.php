@@ -85,6 +85,30 @@ final class User extends Authenticatable implements FilamentUser, HasDefaultTena
     }
 
     /**
+     * @return HasMany<CustomerVehicle, $this>
+     */
+    public function customerVehicles(): HasMany
+    {
+        return $this->hasMany(CustomerVehicle::class, 'user_id');
+    }
+
+    /**
+     * @return HasMany<Booking, $this>
+     */
+    public function bookings(): HasMany
+    {
+        return $this->hasMany(Booking::class, 'customer_id');
+    }
+
+    /**
+     * @return HasMany<ShopQuote, $this>
+     */
+    public function shopQuotes(): HasMany
+    {
+        return $this->hasMany(ShopQuote::class, 'customer_id');
+    }
+
+    /**
      * Determine whether the user can access a specific isolated Filament panel.
      */
     public function canAccessPanel(Panel $panel): bool

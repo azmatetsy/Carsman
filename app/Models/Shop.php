@@ -117,4 +117,20 @@ final class Shop extends Model implements HasCurrentTenantLabel, HasName
     {
         return $this->hasMany(ShopVerificationDocument::class, 'shop_id');
     }
+
+    /**
+     * @return HasMany<ShopQuote, $this>
+     */
+    public function quotes(): HasMany
+    {
+        return $this->hasMany(ShopQuote::class, 'shop_id');
+    }
+
+    /**
+     * @return HasMany<Booking, $this>
+     */
+    public function bookings(): HasMany
+    {
+        return $this->hasMany(Booking::class, 'shop_id');
+    }
 }
